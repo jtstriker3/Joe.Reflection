@@ -118,7 +118,8 @@ namespace Joe.Reflection
 
             if (propInfo != null)
             {
-                if (propInfo.CanWrite && propInfo.SetMethod.IsPublic)
+                //This could be propInfo.SetMethod.IsPublic in .net 4.5
+                if (propInfo.CanWrite && propInfo.GetSetMethod(false) != null)
                 {
                     if (!propInfo.PropertyType.IsValueType || !(Nullable.GetUnderlyingType(propInfo.PropertyType) != null))
                         value = Convert.ChangeType(value, propInfo.PropertyType);
