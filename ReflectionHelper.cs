@@ -9,6 +9,12 @@ namespace Joe.Reflection
 {
     public static class ReflectionHelper
     {
+        /// <summary>
+        /// Will try to get the Property Info based off the Specified Mapping. If the map is invalid then an Exception is thrown
+        /// </summary>
+        /// <param name="obj">Object to Try to get the PropertyInfo From</param>
+        /// <param name="propertyString">Mapping might be something like Person.Name</param>
+        /// <returns>Property Info or thows Exception</returns>
         public static PropertyInfo GetEvalPropertyInfo(Object obj, String propertyString)
         {
 
@@ -31,6 +37,12 @@ namespace Joe.Reflection
             return propInfo;
         }
 
+        /// <summary>
+        /// Will try to get the Property Info based off the Specified Mapping. If the map is invalid then an Exception is thrown
+        /// </summary>
+        /// <param name="type">Type to Try to get the PropertyInfo From</param>
+        /// <param name="propertyString">Mapping might be something like Person.Name</param>
+        /// <returns>Property Info or thows Exception</returns>
         public static PropertyInfo GetEvalPropertyInfo(Type type, String propertyString)
         {
 
@@ -50,6 +62,12 @@ namespace Joe.Reflection
             return propInfo;
         }
 
+        /// <summary>
+        /// Will try to get the Property Info based off the Specified Mapping. If the map is invalid the returns null
+        /// </summary>
+        /// <param name="type">Type to Try to get the PropertyInfo From</param>
+        /// <param name="propertyString">Mapping might be something like Person.Name</param>
+        /// <returns>Property Info Or null</returns>
         public static PropertyInfo TryGetEvalPropertyInfo(Type type, String propertyString)
         {
             PropertyInfo info = null;
@@ -64,6 +82,12 @@ namespace Joe.Reflection
             return info;
         }
 
+        /// <summary>
+        /// Gets the Value of the Specifed Property
+        /// </summary>
+        /// <param name="obj">Object to get the Property Value From</param>
+        /// <param name="propertyString">Mapping might be something like Person.Name</param>
+        /// <returns></returns>
         public static Object GetEvalProperty(Object obj, String propertyString)
         {
             String[] propertyArray = propertyString.Split('.');
@@ -82,11 +106,24 @@ namespace Joe.Reflection
             return obj;
         }
 
+        /// <summary>
+        /// Set the Value of a Property Will Parse on '.' to get to nested properties
+        /// </summary>
+        /// <param name="obj">Object to set Property Of</param>
+        /// <param name="propertyString">Mapping might be something like Person.Name</param>
+        /// <param name="value">Value to Set the property to</param>
         public static void SetEvalProperty(Object obj, String propertyString, Object value)
         {
             SetEvalProperty(obj, propertyString, value, null);
         }
 
+        /// <summary>
+        /// Set the Value of a Property Will Parse on '.' to get to nested properties
+        /// </summary>
+        /// <param name="obj">Object to set Property Of</param>
+        /// <param name="propertyString">Mapping might be something like Person.Name</param>
+        /// <param name="value">Value to Set the property to</param>
+        /// <param name="ObjectCreated">Trigger when a mapping is to a nested object and that object is null</param>
         public static void SetEvalProperty(Object obj, String propertyString, Object value, Action<Object, Object, PropertyInfo> ObjectCreated)
         {
             String[] propertyArray = propertyString.Split('.');
@@ -131,6 +168,11 @@ namespace Joe.Reflection
 
         }
 
+        /// <summary>
+        /// Simple Reflective Map that will map One Object to Another where Proerpty Names Match
+        /// </summary>
+        /// <param name="fromObject">Object to Get Value From</param>
+        /// <param name="toObject">Object to Set Values To</param>
         public static void RefelectiveMap(Object fromObject, Object toObject)
         {
             foreach (PropertyInfo fromInfo in fromObject.GetType().GetProperties())
@@ -175,6 +217,31 @@ namespace Joe.Reflection
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Check to see if type past in is assignable to generic type passed in
+        /// </summary>
+        /// <param name="givenType">Type to Check</param>
+        /// <param name="genericType">Generic to Check Against</param>
+        /// <returns></returns>
+        public static bool IsAssignableToGenericType(Type givenType, Type genericType)
+        {
+            var interfaceTypes = givenType.GetInterfaces();
+
+            foreach (var it in interfaceTypes)
+            {
+                if (it.IsGenericType && it.GetGenericTypeDefinition() == genericType)
+                    return true;
+            }
+
+            if (givenType.IsGenericType && givenType.GetGenericTypeDefinition() == genericType)
+                return true;
+
+            Type baseType = givenType.BaseType;
+            if (baseType == null) return false;
+
+            return IsAssignableToGenericType(baseType, genericType);
         }
     }
 }
