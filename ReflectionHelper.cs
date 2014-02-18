@@ -9,30 +9,24 @@ namespace Joe.Reflection
 {
     public static class ReflectionHelper
     {
+        private static Dictionary<String, PropertyInfo> _infoCache = new Dictionary<String, PropertyInfo>();
+        private static Dictionary<String, PropertyInfo> _tryinfoCache = new Dictionary<String, PropertyInfo>();
         /// <summary>
         /// Will try to get the Property Info based off the Specified Mapping. If the map is invalid then an Exception is thrown
         /// </summary>
         /// <param name="obj">Object to Try to get the PropertyInfo From</param>
         /// <param name="propertyString">Mapping might be something like Person.Name</param>
         /// <returns>Property Info or thows Exception</returns>
-        public static PropertyInfo GetEvalPropertyInfo(Object obj, String propertyString)
+        public static PropertyInfo GetEvalPropertyInfo(this Object obj, String propertyString)
         {
 
             String[] propertyArray = propertyString.Split('.');
             PropertyInfo propInfo = null;
             if (obj != null)
             {
-                foreach (String propertyName in propertyArray)
-                {
-                    if (obj == null)
-                        obj = Activator.CreateInstance(propInfo.PropertyType);
+                var type = obj.GetType();
 
-                    propInfo = obj.GetType().GetProperty(propertyName);
-                    if (propInfo != null)
-                        obj = propInfo.GetValue(obj, null);
-                    else
-                        throw new Exception("Invalid Property String");
-                }
+                type.GetEvalPropertyInfo(propertyString);
             }
             return propInfo;
         }
@@ -43,23 +37,30 @@ namespace Joe.Reflection
         /// <param name="type">Type to Try to get the PropertyInfo From</param>
         /// <param name="propertyString">Mapping might be something like Person.Name</param>
         /// <returns>Property Info or thows Exception</returns>
-        public static PropertyInfo GetEvalPropertyInfo(Type type, String propertyString)
+        public static PropertyInfo GetEvalPropertyInfo(this Type type, String propertyString)
         {
 
             String[] propertyArray = propertyString.Split('.');
             PropertyInfo propInfo = null;
-            if (type != null)
+            var key = type.FullName + propertyString;
+            if (_infoCache.ContainsKey(key))
+                return _infoCache[key];
+            else
             {
-                foreach (String propertyName in propertyArray)
+                if (type != null)
                 {
-                    propInfo = type.GetProperty(propertyName);
-                    if (propInfo != null)
-                        type = propInfo.PropertyType;
-                    else
-                        throw new Exception("Invalid Property String");
+                    foreach (String propertyName in propertyArray)
+                    {
+                        propInfo = type.GetProperty(propertyName);
+                        if (propInfo != null)
+                            type = propInfo.PropertyType;
+                        else
+                            throw new Exception("Invalid Property String");
+                    }
                 }
+                _infoCache.Add(key, propInfo);
+                return propInfo;
             }
-            return propInfo;
         }
 
         /// <summary>
@@ -68,16 +69,24 @@ namespace Joe.Reflection
         /// <param name="type">Type to Try to get the PropertyInfo From</param>
         /// <param name="propertyString">Mapping might be something like Person.Name</param>
         /// <returns>Property Info Or null</returns>
-        public static PropertyInfo TryGetEvalPropertyInfo(Type type, String propertyString)
+        public static PropertyInfo TryGetEvalPropertyInfo(this Type type, String propertyString)
         {
             PropertyInfo info = null;
+            var key = type.FullName + propertyString;
             try
             {
-                info = GetEvalPropertyInfo(type, propertyString);
+                
+                if (_tryinfoCache.ContainsKey(key))
+                    return _tryinfoCache[key];
+                else
+                {
+                    info = GetEvalPropertyInfo(type, propertyString);
+                    _tryinfoCache.Add(key, info);
+                }
             }
             catch
             {
-
+                _tryinfoCache.Add(key, null);
             }
             return info;
         }
@@ -88,7 +97,7 @@ namespace Joe.Reflection
         /// <param name="obj">Object to get the Property Value From</param>
         /// <param name="propertyString">Mapping might be something like Person.Name</param>
         /// <returns></returns>
-        public static Object GetEvalProperty(Object obj, String propertyString)
+        public static Object GetEvalProperty(this Object obj, String propertyString)
         {
             String[] propertyArray = propertyString.Split('.');
             PropertyInfo propInfo = null;
@@ -112,7 +121,7 @@ namespace Joe.Reflection
         /// <param name="obj">Object to set Property Of</param>
         /// <param name="propertyString">Mapping might be something like Person.Name</param>
         /// <param name="value">Value to Set the property to</param>
-        public static void SetEvalProperty(Object obj, String propertyString, Object value)
+        public static void SetEvalProperty(this Object obj, String propertyString, Object value)
         {
             SetEvalProperty(obj, propertyString, value, null);
         }
@@ -124,7 +133,7 @@ namespace Joe.Reflection
         /// <param name="propertyString">Mapping might be something like Person.Name</param>
         /// <param name="value">Value to Set the property to</param>
         /// <param name="ObjectCreated">Trigger when a mapping is to a nested object and that object is null</param>
-        public static void SetEvalProperty(Object obj, String propertyString, Object value, Action<Object, Object, PropertyInfo> ObjectCreated)
+        public static void SetEvalProperty(this Object obj, String propertyString, Object value, Action<Object, Object, PropertyInfo> ObjectCreated)
         {
             String[] propertyArray = propertyString.Split('.');
             PropertyInfo propInfo = null;
@@ -173,7 +182,7 @@ namespace Joe.Reflection
         /// </summary>
         /// <param name="fromObject">Object to Get Value From</param>
         /// <param name="toObject">Object to Set Values To</param>
-        public static void RefelectiveMap(Object fromObject, Object toObject)
+        public static void RefelectiveMap(this Object fromObject, Object toObject)
         {
             foreach (PropertyInfo fromInfo in fromObject.GetType().GetProperties())
             {
@@ -225,7 +234,7 @@ namespace Joe.Reflection
         /// <param name="givenType">Type to Check</param>
         /// <param name="genericType">Generic to Check Against</param>
         /// <returns></returns>
-        public static bool IsAssignableToGenericType(Type givenType, Type genericType)
+        public static bool IsAssignableToGenericType(this Type givenType, Type genericType)
         {
             var interfaceTypes = givenType.GetInterfaces();
 
