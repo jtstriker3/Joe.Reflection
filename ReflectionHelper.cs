@@ -19,14 +19,12 @@ namespace Joe.Reflection
         /// <returns>Property Info or thows Exception</returns>
         public static PropertyInfo GetEvalPropertyInfo(this Object obj, String propertyString)
         {
-
-            String[] propertyArray = propertyString.Split('.');
             PropertyInfo propInfo = null;
             if (obj != null)
             {
                 var type = obj.GetType();
 
-                type.GetEvalPropertyInfo(propertyString);
+                propInfo = type.GetEvalPropertyInfo(propertyString);
             }
             return propInfo;
         }
@@ -39,28 +37,32 @@ namespace Joe.Reflection
         /// <returns>Property Info or thows Exception</returns>
         public static PropertyInfo GetEvalPropertyInfo(this Type type, String propertyString)
         {
+            var key = "GetEvalPropertyInfo";
 
-            String[] propertyArray = propertyString.Split('.');
-            PropertyInfo propInfo = null;
-            var key = type.FullName + propertyString;
-            if (_infoCache.ContainsKey(key))
-                return _infoCache[key];
-            else
+            Delegate getPropInfoDelegate = (Func<Type, String, PropertyInfo>)((Type t, String evalString) =>
             {
-                if (type != null)
+                PropertyInfo propInfo = null;
+                String[] propertyArray = evalString.Split('.');
+                if (t != null)
                 {
                     foreach (String propertyName in propertyArray)
                     {
-                        propInfo = type.GetProperty(propertyName);
+                        propInfo = t.GetProperty(propertyName);
                         if (propInfo != null)
-                            type = propInfo.PropertyType;
+                            t = propInfo.PropertyType;
                         else
                             throw new Exception("Invalid Property String");
                     }
+
+                    return propInfo;
                 }
-                _infoCache.Add(key, propInfo);
-                return propInfo;
-            }
+
+                return null;
+            });
+
+
+
+            return (PropertyInfo)Joe.Caching.Cache.Instance.GetOrAdd(key, TimeSpan.MaxValue, getPropInfoDelegate, type, propertyString);
         }
 
         /// <summary>
@@ -71,24 +73,24 @@ namespace Joe.Reflection
         /// <returns>Property Info Or null</returns>
         public static PropertyInfo TryGetEvalPropertyInfo(this Type type, String propertyString)
         {
-            PropertyInfo info = null;
-            var key = type.FullName + propertyString;
-            try
+            var key = "TryGetEvalPropertyInfo";
+
+            Delegate tryGetEvalPropertyInfoDelegate = (Func<Type, String, PropertyInfo>)((Type t, String evalString) =>
             {
-                
-                if (_tryinfoCache.ContainsKey(key))
-                    return _tryinfoCache[key];
-                else
+                PropertyInfo info = null;
+                try
                 {
-                    info = GetEvalPropertyInfo(type, propertyString);
-                    _tryinfoCache.Add(key, info);
+                    info = GetEvalPropertyInfo(t, evalString);
                 }
-            }
-            catch
-            {
-                _tryinfoCache.Add(key, null);
-            }
-            return info;
+                catch
+                {
+                    //Do Nothing
+                }
+                return info;
+            });
+
+            return (PropertyInfo)Joe.Caching.Cache.Instance.GetOrAdd(key, TimeSpan.MaxValue, tryGetEvalPropertyInfoDelegate, type, propertyString);
+
         }
 
         /// <summary>
@@ -197,17 +199,26 @@ namespace Joe.Reflection
                         && !typeof(string).IsAssignableFrom(fromInfo.PropertyType)
                         && toInfo.GetSetMethod() != null)
                     {
-                        var toEnumerbale = (IEnumerable)Activator.CreateInstance(toInfo.PropertyType);
+                        IEnumerable toEnumerbale;
+                        if (toInfo.PropertyType.IsClass)
+                            toEnumerbale = (IEnumerable)Activator.CreateInstance(toInfo.PropertyType);
+                        else
+                            toEnumerbale = (IEnumerable)Activator.CreateInstance(typeof(List<>).MakeGenericType(toInfo.PropertyType.GetGenericArguments().First()));
+
                         toInfo.SetValue(toObject, toEnumerbale, null);
 
-                        foreach (Object value in (IEnumerable)fromInfo.GetValue(fromObject, null))
+                        var fromEnumerable = (IEnumerable)fromInfo.GetValue(fromObject, null);
+                        if (fromEnumerable != null)
                         {
-                            var toChildObject = Activator.CreateInstance(toInfo.PropertyType.GetGenericArguments()[0]);
-
-                            if (typeof(ICollection<>).IsAssignableFrom(toInfo.GetType()))
+                            foreach (Object value in fromEnumerable)
                             {
-                                RefelectiveMap(value, toChildObject);
-                                toEnumerbale.GetType().GetMethod("Add").Invoke(toEnumerbale, new object[] { toChildObject });
+                                var toChildObject = Activator.CreateInstance(toInfo.PropertyType.GetGenericArguments()[0]);
+
+                                if (typeof(ICollection<>).IsAssignableFrom(toInfo.GetType()))
+                                {
+                                    RefelectiveMap(value, toChildObject);
+                                    toEnumerbale.GetType().GetMethod("Add").Invoke(toEnumerbale, new object[] { toChildObject });
+                                }
                             }
                         }
 
@@ -221,12 +232,26 @@ namespace Joe.Reflection
                         && toInfo.GetSetMethod() != null)
                     {
                         var toChildObject = Activator.CreateInstance(toInfo.PropertyType);
-                        RefelectiveMap(toChildObject, fromInfo.GetValue(fromObject, null));
-                        toInfo.SetValue(toObject, toChildObject, null);
+                        var nestedObject = fromInfo.GetValue(fromObject, null);
+                        if (fromObject != null)
+                        {
+                            RefelectiveMap(toChildObject, nestedObject);
+                            toInfo.SetValue(toObject, toChildObject, null);
+                        }
                     }
                 }
             }
         }
+
+        public static T Clone<T>(this T fromObject)
+        {
+            var clone = (T)Activator.CreateInstance<T>();
+
+            RefelectiveMap(fromObject, clone);
+
+            return clone;
+        }
+
 
         /// <summary>
         /// Check to see if type past in is assignable to generic type passed in
