@@ -37,6 +37,12 @@ namespace Joe.Reflection
         /// <returns>Property Info or thows Exception</returns>
         public static PropertyInfo GetEvalPropertyInfo(this Type type, String propertyString)
         {
+            return GetEvalPropertyInfo(type, propertyString, true);
+        }
+
+
+        private static PropertyInfo GetEvalPropertyInfo(this Type type, String propertyString, bool throwError)
+        {
             var key = "GetEvalPropertyInfo";
 
             Delegate getPropInfoDelegate = (Func<Type, String, PropertyInfo>)((Type t, String evalString) =>
@@ -51,7 +57,10 @@ namespace Joe.Reflection
                         if (propInfo != null)
                             t = propInfo.PropertyType;
                         else
-                            throw new Exception("Invalid Property String");
+                            if (throwError)
+                                throw new Exception("Invalid Property String");
+                            else
+                                return null;
                     }
 
                     return propInfo;
@@ -80,7 +89,7 @@ namespace Joe.Reflection
                 PropertyInfo info = null;
                 try
                 {
-                    info = GetEvalPropertyInfo(t, evalString);
+                    info = GetEvalPropertyInfo(t, evalString, false);
                 }
                 catch
                 {
