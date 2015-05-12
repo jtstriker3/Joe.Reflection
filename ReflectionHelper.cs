@@ -178,7 +178,8 @@ namespace Joe.Reflection
                 //This could be propInfo.SetMethod.IsPublic in .net 4.5
                 if (propInfo.CanWrite && propInfo.GetSetMethod(false) != null)
                 {
-                    if (!propInfo.PropertyType.IsValueType || !(Nullable.GetUnderlyingType(propInfo.PropertyType) != null))
+                    if ((!propInfo.PropertyType.IsValueType || !(Nullable.GetUnderlyingType(propInfo.PropertyType) != null)) 
+                        && (propInfo.PropertyType.GetInterface("IEnumerable") == null || propInfo.PropertyType == typeof(string)))
                         value = Convert.ChangeType(value, propInfo.PropertyType);
                     propInfo.SetValue(obj, value, null);
                 }
