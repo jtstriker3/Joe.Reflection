@@ -58,9 +58,9 @@ namespace Joe.Reflection
                             t = propInfo.PropertyType;
                         else
                             if (throwError)
-                                throw new Exception("Invalid Property String");
-                            else
-                                return null;
+                            throw new Exception("Invalid Property String");
+                        else
+                            return null;
                     }
 
                     return propInfo;
@@ -159,11 +159,16 @@ namespace Joe.Reflection
                     {
                         obj = propInfo.GetValue(obj, null);
                     }
-                    if (obj == null)
+                    if (obj == null && !propInfo.PropertyType.IsAbstract)
                     {
                         obj = Activator.CreateInstance(propInfo.PropertyType);
                         if (ObjectCreated != null)
                             ObjectCreated(obj, parentObj, propInfo);
+                    }
+                    else if(obj == null && propInfo.PropertyType.IsAbstract)
+                    {
+                        propInfo = null;
+                        break;
                     }
 
                     parentObj = obj;
@@ -178,15 +183,12 @@ namespace Joe.Reflection
                 //This could be propInfo.SetMethod.IsPublic in .net 4.5
                 if (propInfo.CanWrite && propInfo.GetSetMethod(false) != null)
                 {
-                    if ((!propInfo.PropertyType.IsValueType || !(Nullable.GetUnderlyingType(propInfo.PropertyType) != null)) 
+                    if ((!propInfo.PropertyType.IsValueType || !(Nullable.GetUnderlyingType(propInfo.PropertyType) != null))
                         && (propInfo.PropertyType.GetInterface("IEnumerable") == null || propInfo.PropertyType == typeof(string)))
                         value = Convert.ChangeType(value, propInfo.PropertyType);
                     propInfo.SetValue(obj, value, null);
                 }
             }
-            else
-                throw new Exception("Invalid Property String");
-
         }
 
         /// <summary>
